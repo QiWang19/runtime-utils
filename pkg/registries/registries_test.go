@@ -149,7 +149,7 @@ func TestMergedMirrorSets(t *testing.T) {
 					{Source: "source.example.com", Mirrors: []string{"z1.example.com", "y2.example.com"}},
 				},
 				{
-					{Source: "source.example.net", Mirrors: []string{"y2.example.net", "x3.example.net"}},
+					{Source: "source.example.net", Mirrors: []string{"y2.example.net", "z1.example.net"}},
 					{Source: "source.example.com", Mirrors: []string{"y2.example.com", "x3.example.com"}},
 				},
 			},
