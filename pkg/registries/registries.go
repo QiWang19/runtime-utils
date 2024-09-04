@@ -36,16 +36,6 @@ func ScopeIsNestedInsideScope(subScope, superScope string) bool {
 	return match
 }
 
-// mirrorsContainsARealMirror returns true if mirrors contains at least one entry that is not source.
-func mirrorsContainsARealMirror(source string, mirrors []apicfgv1.ImageMirror) bool {
-	for _, mirror := range mirrors {
-		if string(mirror) != source {
-			return true
-		}
-	}
-	return false
-}
-
 // mirrorSet collects data from mirror setting CRDs (ImageDigestMirrorSet, ImageTagMirrorSet)
 type mirrorSets struct {
 	disjointSets      map[string]*[][]string // Key == Source
@@ -60,8 +50,8 @@ func newMirrorSets() *mirrorSets {
 }
 
 func (sets *mirrorSets) addMirrorSet(source string, mirrorSourcePolicy apicfgv1.MirrorSourcePolicy, mirrors []apicfgv1.ImageMirror) {
-	if !mirrorsContainsARealMirror(source, mirrors) {
-		return // No mirrors (or mirrors that only repeat the authoritative source) is not really a mirror set. Ignore mirrorSourcePolicy intentionally.
+	if len(mirrors) == 0 {
+		return
 	}
 	strMirrors := []string{}
 	for _, m := range mirrors {
@@ -82,6 +72,9 @@ func (sets *mirrorSets) addMirrorSet(source string, mirrorSourcePolicy apicfgv1.
 func (sets *mirrorSets) mergedMirrors(source string) ([]string, error) {
 	topoGraph := newTopoGraph()
 	for _, mirrors := range *sets.disjointSets[source] {
+		if len(mirrors) == 1 {
+			topoGraph.AddNode(mirrors[0])
+		}
 		for i := 0; i+1 < len(mirrors); i++ {
 			topoGraph.AddEdge(mirrors[i], mirrors[i+1])
 		}
@@ -106,10 +99,6 @@ func (sets *mirrorSets) mergedMirrors(source string) ([]string, error) {
 	if sortedRepos[len(sortedRepos)-1] == source {
 		// We don't need to explicitly include source in the list, it will be automatically tried last per the semantics of sysregistriesv2. Mirrors.
 		sortedRepos = sortedRepos[:len(sortedRepos)-1]
-	}
-
-	if err != nil {
-		return nil, err
 	}
 	return sortedRepos, nil
 }

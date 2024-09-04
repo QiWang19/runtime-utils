@@ -76,28 +76,6 @@ func TestIsValidRegistriesConfScope(t *testing.T) {
 	}
 }
 
-func TestMirrorsContainsARealMirror(t *testing.T) {
-	const source = "source.example.com"
-
-	for _, tt := range []struct {
-		mirrors  []apicfgv1.ImageMirror
-		expected bool
-	}{
-		{[]apicfgv1.ImageMirror{}, false},                                  // No mirrors listed
-		{[]apicfgv1.ImageMirror{"mirror.local"}, true},                     // A single real mirror
-		{[]apicfgv1.ImageMirror{source}, false},                            // The source only
-		{[]apicfgv1.ImageMirror{source, source, source}, false},            // Source only, repeated
-		{[]apicfgv1.ImageMirror{"mirror.local", source}, true},             // Both
-		{[]apicfgv1.ImageMirror{source, "mirror.local"}, true},             // Both
-		{[]apicfgv1.ImageMirror{"m1.local", "m2.local", "m3.local"}, true}, // Multiple real mirrors
-	} {
-		t.Run(fmt.Sprintf("%#v", tt.mirrors), func(t *testing.T) {
-			res := mirrorsContainsARealMirror(source, tt.mirrors)
-			assert.Equal(t, tt.expected, res)
-		})
-	}
-}
-
 var mergedMirrorsetsTestcases = []struct {
 	name   string
 	input  [][]mergedMirrorSet
@@ -193,7 +171,10 @@ var mergedMirrorsetsTestcases = []struct {
 				{source: "source.example.net", mirrors: []string{"source.example.net", "source.example.net", "source.example.net"}},
 			},
 		},
-		result: []mergedMirrorSet{},
+		result: []mergedMirrorSet{
+			{source: "source.example.com", mirrors: []string{}},
+			{source: "source.example.net", mirrors: []string{}},
+		},
 	},
 	// More complex mirror set combinations are mostly tested in TestTopoGraph
 	{
@@ -1040,6 +1021,74 @@ func TestEditRegistriesConfig(t *testing.T) {
 						},
 						Mirrors: []sysregistriesv2.Endpoint{
 							{Location: "mirror-tag-1.registry-c.com", PullFromMirror: sysregistriesv2.MirrorByTagOnly},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "allow the source to be the only entry in the  mirror list",
+			idmsRules: []*apicfgv1.ImageDigestMirrorSet{
+				{
+					Spec: apicfgv1.ImageDigestMirrorSetSpec{
+						ImageDigestMirrors: []apicfgv1.ImageDigestMirrors{
+							{Source: "registry-a.com", Mirrors: []apicfgv1.ImageMirror{"registry-a.com"}},                                     // the source only
+							{Source: "registry-b.com", Mirrors: []apicfgv1.ImageMirror{"mirror-b.com", "registry-b.com"}},                     // the mirror and a source
+							{Source: "registry-c.com", Mirrors: []apicfgv1.ImageMirror{"registry-c.com", "mirror-c.com"}},                     // the source and a mirror
+							{Source: "registry-d.com", Mirrors: []apicfgv1.ImageMirror{"registry-d.com", "mirror-d.com", "registry-d.com"}},   // the mirror and repeated sources
+							{Source: "registry-e.com", Mirrors: []apicfgv1.ImageMirror{"registry-e.com", "registry-e.com", "registry-e.com"}}, // repeated sources
+							{Source: "registry-f.com", Mirrors: []apicfgv1.ImageMirror{"registry-f.com"}},
+							{Source: "registry-f.com", Mirrors: []apicfgv1.ImageMirror{"mirror-a.com", "registry-f.com", "mirror-b.com"}},
+						},
+					},
+				},
+			},
+			want: sysregistriesv2.V2RegistriesConf{
+				UnqualifiedSearchRegistries: []string{"registry.access.redhat.com", "docker.io"},
+				Registries: []sysregistriesv2.Registry{
+					{
+						Endpoint: sysregistriesv2.Endpoint{
+							Location: "registry-a.com",
+						},
+					},
+					{
+						Endpoint: sysregistriesv2.Endpoint{
+							Location: "registry-b.com",
+						},
+						Mirrors: []sysregistriesv2.Endpoint{
+							{Location: "mirror-b.com", PullFromMirror: sysregistriesv2.MirrorByDigestOnly},
+						},
+					},
+					{
+						Endpoint: sysregistriesv2.Endpoint{
+							Location: "registry-c.com",
+						},
+						Mirrors: []sysregistriesv2.Endpoint{
+							{Location: "registry-c.com", PullFromMirror: sysregistriesv2.MirrorByDigestOnly},
+							{Location: "mirror-c.com", PullFromMirror: sysregistriesv2.MirrorByDigestOnly},
+						},
+					},
+					{
+						Endpoint: sysregistriesv2.Endpoint{
+							Location: "registry-d.com",
+						},
+						Mirrors: []sysregistriesv2.Endpoint{
+							{Location: "mirror-d.com", PullFromMirror: sysregistriesv2.MirrorByDigestOnly},
+						},
+					},
+					{
+						Endpoint: sysregistriesv2.Endpoint{
+							Location: "registry-e.com",
+						},
+					},
+					{
+						Endpoint: sysregistriesv2.Endpoint{
+							Location: "registry-f.com",
+						},
+						Mirrors: []sysregistriesv2.Endpoint{
+							{Location: "mirror-a.com", PullFromMirror: sysregistriesv2.MirrorByDigestOnly},
+							{Location: "registry-f.com", PullFromMirror: sysregistriesv2.MirrorByDigestOnly},
+							{Location: "mirror-b.com", PullFromMirror: sysregistriesv2.MirrorByDigestOnly},
 						},
 					},
 				},

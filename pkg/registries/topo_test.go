@@ -9,12 +9,12 @@ import (
 
 func TestTopoGraph(t *testing.T) {
 	for _, c := range []struct {
-		name   string
-		edges  []string
-		result string
+		name    string
+		edges   []string
+		newNode string
+		result  string
 	}{
-		// (These test cases contain the same structure in two disconnected components (upper/lower-case); we use topoGraph only
-		// for ordering known-connected components, so don't worry about the relative ordering of upper/lower-case nodes, only
+		// (These test cases contain the same structure in two disconnected components (upper/lower-case); don't worry about the relative ordering of upper/lower-case nodes, only
 		// about the ordering within each component.)
 		{name: "Empty", edges: []string{}, result: ""},
 		{
@@ -42,6 +42,18 @@ func TestTopoGraph(t *testing.T) {
 			edges:  []string{"AB", "BC", "CD", "DB", "DE", "ab", "bc", "cd", "db", "de"},
 			result: "AaBCDEbcde",
 		},
+		{
+			name:    "add a new node to single node graph",
+			edges:   []string{},
+			newNode: "A",
+			result:  "A",
+		},
+		{
+			name:    "add an isolate node to connected graph",
+			edges:   []string{"AD", "AC", "AB", "BC"},
+			newNode: "E",
+			result:  "AEBDC",
+		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			for edgeOffset := 0; edgeOffset == 0 || edgeOffset < len(c.edges); edgeOffset++ {
@@ -53,6 +65,9 @@ func TestTopoGraph(t *testing.T) {
 					e := c.edges[(edgeOffset+i)%len(c.edges)]
 					require.Len(t, e, 2)
 					g.AddEdge(e[0:1], e[1:2])
+				}
+				if c.newNode != "" {
+					g.AddNode(c.newNode)
 				}
 				res, err := g.Sorted()
 				require.NoError(t, err)

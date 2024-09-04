@@ -49,6 +49,12 @@ func (g *topoGraph) getNode(node topoNode) *internalTopoNode {
 	return res
 }
 
+// AddNode creates and adds a node to the graph if it does not already exist.
+// If the node already exists, this function does nothing.
+func (g *topoGraph) AddNode(node topoNode) {
+	_ = g.getNode(node)
+}
+
 // AddEdge adds a directed edge (from, to)
 func (g *topoGraph) AddEdge(from, to topoNode) {
 	fromTN := g.getNode(from)
